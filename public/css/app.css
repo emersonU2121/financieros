@@ -1,0 +1,151 @@
+/* Layout general de página de módulo */
+.page-wrapper {
+    max-width: 1200px;
+    margin: 40px auto;
+    padding: 0 24px;
+}
+
+.page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 28px;
+}
+
+.page-title {
+    font-size: 32px;
+    font-weight: 700;
+    color: #e5e7eb;
+    margin-bottom: 4px;
+}
+
+.page-subtitle {
+    font-size: 14px;
+    color: #9ca3af;
+}
+
+/* Card principal */
+.card {
+    background: #020617;
+    border-radius: 16px;
+    padding: 28px 32px;
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.6);
+    border: 1px solid #1e293b;
+}
+
+.card-header h2 {
+    font-size: 18px;
+    color: #e5e7eb;
+    margin-bottom: 4px;
+}
+
+.card-header p {
+    font-size: 13px;
+    color: #9ca3af;
+    margin-bottom: 20px;
+}
+
+.card-body {
+    margin-top: 10px;
+}
+
+/* Grid 2 columnas */
+.form-grid-2col {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 22px 32px;
+}
+
+/* Campos */
+.form-group label {
+    display: block;
+    font-size: 13px;
+    color: #d1d5db;
+    margin-bottom: 6px;
+}
+
+.form-group input[type="text"],
+.form-group input[type="number"],
+.form-group input[type="date"] {
+    width: 100%;
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: 1px solid #1f2937;
+    background: radial-gradient(circle at top left, #020617, #020617);
+    color: #f9fafb;
+    font-size: 14px;
+    outline: none;
+}
+
+.form-group input::placeholder {
+    color: #6b7280;
+}
+
+.form-group input:focus {
+    border-color: #0ea5e9;
+    box-shadow: 0 0 0 1px rgba(14, 165, 233, 0.4);
+}
+
+/* Checkbox */
+.full-width {
+    grid-column: span 2;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: #e5e7eb;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+}
+
+/* Botones */
+.form-actions {
+    margin-top: 28px;
+    display: flex;
+    gap: 12px;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #22d3ee, #0ea5e9);
+    border: none;
+    color: #020617;
+    padding: 10px 22px;
+    border-radius: 9999px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.btn-primary:hover {
+    filter: brightness(1.05);
+}
+
+.btn-secondary {
+    border-radius: 9999px;
+    padding: 9px 20px;
+    border: 1px solid #4b5563;
+    color: #e5e7eb;
+    text-decoration: none;
+    font-size: 14px;
+}
+
+/* Alert de errores */
+.alert-error {
+    border-radius: 10px;
+    border: 1px solid #f97373;
+    background: rgba(248, 113, 113, 0.08);
+    color: #fecaca;
+    padding: 12px 14px;
+    margin-bottom: 16px;
+    font-size: 13px;
+}
+.alert-error ul {
+    margin: 6px 0 0;
+    padding-left: 20px;
+}
