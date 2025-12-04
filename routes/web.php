@@ -1,4 +1,4 @@
-<?php
+<?php 
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
@@ -19,16 +19,14 @@ Route::get('/', function () {
     return redirect()->route('login');
 });
 
-<<<<<<< HEAD
-
 // ============================================
 //  LOGIN Y AUTENTICACIÓN
 // ============================================
-=======
+
+// Ruta extra que venía del remoto para reactivar incobrables
 Route::post('/cuentas/{cuenta}/reactivar-incobrable', [CuentaPorCobrarController::class, 'reactivarIncobrable'])
     ->name('cuentas.reactivarIncobrable');
 
->>>>>>> d5f214c3470b07de583bcb7ee90e42b2559aed9a
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
     Route::post('/login', [AuthController::class, 'login'])->name('login.post');
