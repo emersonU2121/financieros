@@ -17,46 +17,45 @@ use Carbon\Carbon;
 
 class CuentaPorCobrarController extends Controller
 {
- 
-  public function __construct()
+    public function __construct()
     {
         $this->middleware('auth');
     }
+
     // LISTADO GENERAL
-   public function index(Request $request)
-{
-    // Lista de clientes para el combo de filtros
-    $clientes = Cliente::orderBy('nombre')->get();
+    public function index(Request $request)
+    {
+        // Lista de clientes para el combo de filtros
+        $clientes = Cliente::orderBy('nombre')->get();
 
-    // Consulta base
-    $cuentasQuery = CuentaPorCobrar::with('cliente');
+        // Consulta base
+        $cuentasQuery = CuentaPorCobrar::with('cliente');
 
-    // Filtro por cliente (id)
-    if ($request->filled('cliente')) {
-        $cuentasQuery->where('cliente_id', $request->cliente);
+        // Filtro por cliente (id)
+        if ($request->filled('cliente')) {
+            $cuentasQuery->where('cliente_id', $request->cliente);
+        }
+
+        // Filtro por estado
+        if ($request->filled('estado')) {
+            $cuentasQuery->where('estado', $request->estado);
+        }
+
+        // Filtro por rango de fechas (fecha_inicio)
+        if ($request->filled('desde')) {
+            $cuentasQuery->whereDate('fecha_inicio', '>=', $request->desde);
+        }
+
+        if ($request->filled('hasta')) {
+            $cuentasQuery->whereDate('fecha_inicio', '<=', $request->hasta);
+        }
+
+        $cuentas = $cuentasQuery
+            ->orderBy('fecha_inicio', 'desc')
+            ->get();
+
+        return view('cuentas.index', compact('cuentas', 'clientes'));
     }
-
-    // Filtro por estado
-    if ($request->filled('estado')) {
-        $cuentasQuery->where('estado', $request->estado);
-    }
-
-    // Filtro por rango de fechas (fecha_inicio)
-    if ($request->filled('desde')) {
-        $cuentasQuery->whereDate('fecha_inicio', '>=', $request->desde);
-    }
-
-    if ($request->filled('hasta')) {
-        $cuentasQuery->whereDate('fecha_inicio', '<=', $request->hasta);
-    }
-
-    // Puedes cambiar a paginate(10) si quieres paginación
-    $cuentas = $cuentasQuery
-        ->orderBy('fecha_inicio', 'desc')
-        ->get();
-
-    return view('cuentas.index', compact('cuentas', 'clientes'));
-}
 
     // FORM CREAR
     public function create()
@@ -72,24 +71,48 @@ class CuentaPorCobrarController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'cliente_id'            => 'required|exists:clientes,id',
-            'politica_credito_id'   => 'required|exists:politicas_credito,id',
-            'usuario_responsable_id'=> 'required|exists:users,id',
-            'numero_factura'        => 'required|string|max:50',
-            'fecha_factura'         => 'required|date',
-            'tipo_documento'        => 'nullable|string|max:100',
-            'monto_capital_inicial' => 'required|numeric|min:0.01',
-            'fecha_inicio'          => 'required|date',
-            'fiador_nombre'         => 'nullable|string|max:255',
-            'fiador_dui'            => 'nullable|string|max:20',
-            'fiador_direccion'      => 'nullable|string|max:255',
-            'fiador_telefono'       => 'nullable|string|max:30',
+            'cliente_id'             => ['required', 'exists:clientes,id'],
+            'politica_credito_id'    => ['required', 'exists:politicas_credito,id'],
+            'usuario_responsable_id' => ['required', 'exists:users,id'],
+
+            'numero_factura'         => ['required', 'string', 'max:50'],
+            'fecha_factura'          => ['required', 'date'],
+            'tipo_documento'         => ['nullable', 'string', 'max:100'],
+
+            // 💰 capital: obligatorio, numérico, no 0 ni negativo
+            'monto_capital_inicial'  => ['required', 'numeric', 'min:0.01'],
+
+            // fecha de inicio no puede ser antes que la factura
+            'fecha_inicio'           => ['required', 'date', 'after_or_equal:fecha_factura'],
+
+            // Fiador (opcionales pero con formato correcto si se llenan)
+            'fiador_nombre'          => ['nullable', 'string', 'max:255'],
+            // DUI salvadoreño 00000000-0
+            'fiador_dui'             => ['nullable', 'regex:/^[0-9]{8}-[0-9]{1}$/'],
+            'fiador_direccion'       => ['nullable', 'string', 'max:255'],
+            // Teléfono: dígitos, espacios o guiones, entre 8 y 15 caracteres
+            'fiador_telefono'        => ['nullable', 'regex:/^[0-9\-\s\+]{8,15}$/'],
+        ], [
+            'monto_capital_inicial.min'      => 'El monto capital inicial debe ser al menos 0.01.',
+            'fiador_dui.regex'               => 'El DUI del fiador debe tener el formato 00000000-0.',
+            'fiador_telefono.regex'          => 'El teléfono del fiador solo debe contener números, espacios, + o guiones, entre 8 y 15 caracteres.',
+            'fecha_inicio.after_or_equal'    => 'La fecha de inicio del crédito no puede ser anterior a la fecha de la factura.',
         ]);
 
         return DB::transaction(function () use ($data, $request) {
 
             $cliente  = Cliente::findOrFail($data['cliente_id']);
             $politica = PoliticaCredito::findOrFail($data['politica_credito_id']);
+
+            // 🔹 Política institucional: monto financiado mínimo $10.00
+            $montoMinimoPolitica = 10.00;
+            if ($data['monto_capital_inicial'] < $montoMinimoPolitica) {
+                return back()
+                    ->withInput()
+                    ->withErrors([
+                        'monto_capital_inicial' => 'Según la política de crédito, el monto financiado mínimo es de $' . number_format($montoMinimoPolitica, 2) . '.',
+                    ]);
+            }
 
             // Validar límite de crédito
             $deudaActual = $cliente->cuentas()
@@ -148,16 +171,15 @@ class CuentaPorCobrarController extends Controller
                 'estado'                 => 'VIGENTE',
             ]);
 
-BitacoraAccion::create([
-    'user_id'    => Auth::id() 
-                     ?? $request->usuario_responsable_id   // usa el analista
-                     ?? 1,                                 // o ID 1 como fallback
-    'accion'     => 'CREAR_CREDITO',
-    'entidad'    => 'CuentaPorCobrar',
-    'entidad_id' => $cuenta->id,
-    'detalle'    => 'Cuenta creada desde factura ' . $cuenta->numero_factura,
-]);
-
+            BitacoraAccion::create([
+                'user_id'    => Auth::id()
+                    ?? $request->usuario_responsable_id
+                    ?? 1,
+                'accion'     => 'CREAR_CREDITO',
+                'entidad'    => 'CuentaPorCobrar',
+                'entidad_id' => $cuenta->id,
+                'detalle'    => 'Cuenta creada desde factura ' . $cuenta->numero_factura,
+            ]);
 
             return redirect()->route('cuentas.show', $cuenta)
                 ->with('success', 'Cuenta por cobrar creada correctamente.');
@@ -203,7 +225,7 @@ BitacoraAccion::create([
         }
 
         $data = $request->validate([
-            'fecha_nuevo_inicio' => 'required|date',
+            'fecha_nuevo_inicio' => ['required', 'date'],
         ]);
 
         $politica     = $cuenta->politica;
@@ -236,9 +258,9 @@ BitacoraAccion::create([
         }
 
         $data = $request->validate([
-            'politica_credito_id' => 'required|exists:politicas_credito,id',
-            'fecha_inicio'        => 'required|date',
-            'motivo'              => 'nullable|string|max:500',
+            'politica_credito_id' => ['required', 'exists:politicas_credito,id'],
+            'fecha_inicio'        => ['required', 'date'],
+            'motivo'              => ['nullable', 'string', 'max:500'],
         ]);
 
         return DB::transaction(function () use ($cuenta, $data) {
@@ -299,9 +321,9 @@ BitacoraAccion::create([
     public function marcarEmbargo(CuentaPorCobrar $cuenta, Request $request)
     {
         $data = $request->validate([
-            'fecha_inicio'   => 'required|date',
-            'estado_proceso' => 'nullable|string|max:100',
-            'observaciones'  => 'nullable|string|max:1000',
+            'fecha_inicio'   => ['required', 'date'],
+            'estado_proceso' => ['nullable', 'string', 'max:100'],
+            'observaciones'  => ['nullable', 'string', 'max:1000'],
         ]);
 
         return DB::transaction(function () use ($cuenta, $data) {
@@ -370,33 +392,37 @@ BitacoraAccion::create([
     public function update(Request $request, CuentaPorCobrar $cuenta)
     {
         $data = $request->validate([
-            'cliente_id'            => 'required|exists:clientes,id',
-            'politica_credito_id'   => 'required|exists:politicas_credito,id',
-            'usuario_responsable_id'=> 'required|exists:users,id',
-            'numero_factura'        => 'required|string|max:50',
-            'fecha_factura'         => 'required|date',
-            'tipo_documento'        => 'required|string|max:50',
-            'fecha_inicio'          => 'required|date',
-            'estado'                => 'required|in:VIGENTE,EN_MORA,INCOBRABLE,REFINANCIADO,CANCELADO',
+            'cliente_id'             => ['required', 'exists:clientes,id'],
+            'politica_credito_id'    => ['required', 'exists:politicas_credito,id'],
+            'usuario_responsable_id' => ['required', 'exists:users,id'],
+            'numero_factura'         => ['required', 'string', 'max:50'],
+            'fecha_factura'          => ['required', 'date'],
+            'tipo_documento'         => ['required', 'string', 'max:50'],
+            'fecha_inicio'           => ['required', 'date', 'after_or_equal:fecha_factura'],
+            'estado'                 => ['required', 'in:VIGENTE,EN_MORA,INCOBRABLE,REFINANCIADO,CANCELADO'],
 
-            // campos de fiador opcionales
-            'fiador_nombre'         => 'nullable|string|max:255',
-            'fiador_dui'            => 'nullable|string|max:20',
-            'fiador_direccion'      => 'nullable|string|max:255',
-            'fiador_telefono'       => 'nullable|string|max:30',
+            // campos de fiador opcionales pero validados
+            'fiador_nombre'          => ['nullable', 'string', 'max:255'],
+            'fiador_dui'             => ['nullable', 'regex:/^[0-9]{8}-[0-9]{1}$/'],
+            'fiador_direccion'       => ['nullable', 'string', 'max:255'],
+            'fiador_telefono'        => ['nullable', 'regex:/^[0-9\-\s\+]{8,15}$/'],
+        ], [
+            'fiador_dui.regex'            => 'El DUI del fiador debe tener el formato 00000000-0.',
+            'fiador_telefono.regex'       => 'El teléfono del fiador solo debe contener números, espacios, + o guiones, entre 8 y 15 caracteres.',
+            'fecha_inicio.after_or_equal' => 'La fecha de inicio del crédito no puede ser anterior a la fecha de la factura.',
         ]);
 
         return DB::transaction(function () use ($data, $cuenta) {
 
             // actualizar datos básicos
-            $cuenta->cliente_id            = $data['cliente_id'];
-            $cuenta->politica_credito_id   = $data['politica_credito_id'];
-            $cuenta->usuario_responsable_id= $data['usuario_responsable_id'];
-            $cuenta->numero_factura        = $data['numero_factura'];
-            $cuenta->fecha_factura         = $data['fecha_factura'];
-            $cuenta->tipo_documento        = $data['tipo_documento'];
-            $cuenta->fecha_inicio          = $data['fecha_inicio'];
-            $cuenta->estado                = $data['estado'];
+            $cuenta->cliente_id             = $data['cliente_id'];
+            $cuenta->politica_credito_id    = $data['politica_credito_id'];
+            $cuenta->usuario_responsable_id = $data['usuario_responsable_id'];
+            $cuenta->numero_factura         = $data['numero_factura'];
+            $cuenta->fecha_factura          = $data['fecha_factura'];
+            $cuenta->tipo_documento         = $data['tipo_documento'];
+            $cuenta->fecha_inicio           = $data['fecha_inicio'];
+            $cuenta->estado                 = $data['estado'];
 
             // recalcular fecha de vencimiento por si cambiaste política o fecha_inicio
             $politica = $cuenta->politica; // relación
