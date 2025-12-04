@@ -12,99 +12,133 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\BitacoraController;
 
 
-
 // ============================================
-//  HOME: redirige al listado de cuentas
+//  HOME: redirige al login
 // ============================================
 Route::get('/', function () {
     return redirect()->route('login');
 });
 
+
+// ============================================
+//  LOGIN Y AUTENTICACIÓN
+// ============================================
 Route::middleware('guest')->group(function () {
     Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
     Route::post('/login', [AuthController::class, 'login'])->name('login.post');
 });
 
-// 👉 LOGOUT (solo usuarios autenticados)
+//  LOGOUT (solo autenticados)
 Route::post('/logout', [AuthController::class, 'logout'])
     ->name('logout')
     ->middleware('auth');
 
-// 👉 RUTAS PROTEGIDAS (no se pueden abrir escribiendo la URL si no hay login)
+
+// ============================================
+//  RUTAS PROTEGIDAS
+// ============================================
 Route::middleware('auth')->group(function () {
-// ============================================
-//  CLIENTES
-// ============================================
-Route::get('/clientes', [ClienteController::class, 'index'])->name('clientes.index');
-Route::get('/clientes/create', [ClienteController::class, 'create'])->name('clientes.create');
-Route::post('/clientes', [ClienteController::class, 'store'])->name('clientes.store');
-Route::get('/clientes/{cliente}', [ClienteController::class, 'show'])->name('clientes.show');
-Route::get('/clientes/{cliente}/edit', [ClienteController::class, 'edit'])->name('clientes.edit');
-Route::put('/clientes/{cliente}', [ClienteController::class, 'update'])->name('clientes.update');
-Route::delete('/clientes/{cliente}', [ClienteController::class, 'destroy'])->name('clientes.destroy');
-// CLASIFICACIONES (A, B, C, D)
-Route::resource('clasificaciones', ClasificacionClienteController::class)
-    ->except(['show']);
 
-// POLÍTICAS DE CRÉDITO
-Route::resource('politicas', PoliticaCreditoController::class)
-    ->except(['show']);
+    // ============================================
+    //  CLIENTES
+    // ============================================
+    Route::get('/clientes', [ClienteController::class, 'index'])->name('clientes.index');
+    Route::get('/clientes/create', [ClienteController::class, 'create'])->name('clientes.create');
+    Route::post('/clientes', [ClienteController::class, 'store'])->name('clientes.store');
+    Route::get('/clientes/{cliente}', [ClienteController::class, 'show'])->name('clientes.show');
+    Route::get('/clientes/{cliente}/edit', [ClienteController::class, 'edit'])->name('clientes.edit');
+    Route::put('/clientes/{cliente}', [ClienteController::class, 'update'])->name('clientes.update');
+    Route::delete('/clientes/{cliente}', [ClienteController::class, 'destroy'])->name('clientes.destroy');
 
+    // CLASIFICACIONES
+    Route::resource('clasificaciones', ClasificacionClienteController::class)->except(['show']);
 
-// ============================================
-//  CUENTAS POR COBRAR
-// ============================================
-Route::resource('cuentas', CuentaPorCobrarController::class);
-
-// Acciones especiales de la cuenta
-Route::post('cuentas/{cuenta}/incobrable', [CuentaPorCobrarController::class, 'marcarIncobrable'])
-    ->name('cuentas.incobrable');
-
-Route::post('cuentas/{cuenta}/reactivar', [CuentaPorCobrarController::class, 'reactivarIncobrable'])
-    ->name('cuentas.reactivar');
-
-Route::post('cuentas/{cuenta}/refinanciar', [CuentaPorCobrarController::class, 'crearRefinanciamiento'])
-    ->name('cuentas.refinanciar');
-
-Route::post('cuentas/{cuenta}/embargo', [CuentaPorCobrarController::class, 'marcarEmbargo'])
-    ->name('cuentas.embargo');
+    // POLÍTICAS DE CRÉDITO
+    Route::resource('politicas', PoliticaCreditoController::class)->except(['show']);
 
 
-// ============================================
-//  PAGOS
-// ============================================
-Route::post('pagos', [PagoController::class, 'store'])
-    ->name('pagos.store');
+    // ============================================
+    //  CUENTAS POR COBRAR
+    // ============================================
+    Route::resource('cuentas', CuentaPorCobrarController::class);
+
+    // Acciones especiales
+    Route::post('cuentas/{cuenta}/incobrable', [CuentaPorCobrarController::class, 'marcarIncobrable'])
+        ->name('cuentas.incobrable');
+
+    Route::post('cuentas/{cuenta}/reactivar', [CuentaPorCobrarController::class, 'reactivarIncobrable'])
+        ->name('cuentas.reactivar');
+
+    Route::post('cuentas/{cuenta}/refinanciar', [CuentaPorCobrarController::class, 'crearRefinanciamiento'])
+        ->name('cuentas.refinanciar');
+
+    Route::post('cuentas/{cuenta}/embargo', [CuentaPorCobrarController::class, 'marcarEmbargo'])
+        ->name('cuentas.embargo');
 
 
-// ============================================
-//  REPORTES
-// ============================================
-Route::get('reportes/cartera', [ReporteCarteraController::class, 'carteraGeneral'])
-    ->name('reportes.cartera');
+    // ============================================
+    //  PAGOS
+    // ============================================
+    Route::post('pagos', [PagoController::class, 'store'])->name('pagos.store');
 
-Route::get('reportes/mora', [ReporteCarteraController::class, 'mora'])
-    ->name('reportes.mora');
 
-Route::get('reportes/incobrables', [ReporteCarteraController::class, 'incobrables'])
-    ->name('reportes.incobrables');
+    // ============================================
+    //  REPORTES – ENTRADA PRINCIPAL
+    // ============================================
+    Route::get('reportes', function () {
+        return redirect()->route('reportes.cartera');
+    })->name('reportes.index');
 
-Route::get('reportes/por-zona', [ReporteCarteraController::class, 'porZona'])
-    ->name('reportes.por_zona');
 
-Route::get('reportes/por-tipo-cliente', [ReporteCarteraController::class, 'porTipoCliente'])
-    ->name('reportes.por_tipo_cliente');
-// ============================================
-// Usuarios 
-// ============================================
-Route::resource('usuarios', UserController::class)->parameters([
-    'usuarios' => 'usuario',
-])->except(['show']);
+    // ============================================
+    //  REPORTES – VISTAS NORMALES
+    // ============================================
+    Route::get('reportes/cartera', [ReporteCarteraController::class, 'carteraGeneral'])
+        ->name('reportes.cartera');
 
-// ============================================
-// Bitácora de actividades
-// ============================================
-Route::get('/bitacora', [BitacoraController::class, 'index'])
-    ->name('bitacora.index')
-    ->middleware('auth');
+    Route::get('reportes/mora', [ReporteCarteraController::class, 'mora'])
+        ->name('reportes.mora');
+
+    Route::get('reportes/incobrables', [ReporteCarteraController::class, 'incobrables'])
+        ->name('reportes.incobrables');
+
+    Route::get('reportes/por-zona', [ReporteCarteraController::class, 'porZona'])
+        ->name('reportes.por_zona');
+
+    Route::get('reportes/por-tipo-cliente', [ReporteCarteraController::class, 'porTipoCliente'])
+        ->name('reportes.por_tipo_cliente');
+
+
+    // ============================================
+    //  REPORTES – EXPORTACIONES (PDF / CSV / XLS)
+    // ============================================
+    Route::get('reportes/cartera/export/{formato}', [ReporteCarteraController::class, 'exportarCarteraGeneral'])
+        ->name('reportes.cartera.export');
+
+    Route::get('reportes/mora/export/{formato}', [ReporteCarteraController::class, 'exportarMora'])
+        ->name('reportes.mora.export');
+
+    Route::get('reportes/incobrables/export/{formato}', [ReporteCarteraController::class, 'exportarIncobrables'])
+        ->name('reportes.incobrables.export');
+
+    Route::get('reportes/por-zona/export/{formato}', [ReporteCarteraController::class, 'exportarPorZona'])
+        ->name('reportes.por_zona.export');
+
+    Route::get('reportes/por-tipo-cliente/export/{formato}', [ReporteCarteraController::class, 'exportarPorTipoCliente'])
+        ->name('reportes.por_tipo_cliente.export');
+
+
+    // ============================================
+    // Usuarios 
+    // ============================================
+    Route::resource('usuarios', UserController::class)
+        ->parameters(['usuarios' => 'usuario'])
+        ->except(['show']);
+
+
+    // ============================================
+    // Bitácora de actividades
+    // ============================================
+    Route::get('/bitacora', [BitacoraController::class, 'index'])
+        ->name('bitacora.index');
 });
