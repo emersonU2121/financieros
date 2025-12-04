@@ -217,7 +217,7 @@ class CuentaPorCobrarController extends Controller
         return back()->with('success', 'Cuenta marcada como incobrable.');
     }
 
-    // REACTIVAR INCOBRABLE
+   // REACTIVAR INCOBRABLE (Ajustado a tu Política de Crédito)
     public function reactivarIncobrable(CuentaPorCobrar $cuenta, Request $request)
     {
         if ($cuenta->estado !== 'INCOBRABLE') {
@@ -228,28 +228,61 @@ class CuentaPorCobrarController extends Controller
             'fecha_nuevo_inicio' => ['required', 'date'],
         ]);
 
-        $politica     = $cuenta->politica;
-        $fechaInicio  = Carbon::parse($data['fecha_nuevo_inicio']);
-        $fechaVence   = $fechaInicio->copy()->addDays($politica->plazo_dias);
+        return DB::transaction(function () use ($cuenta, $data) {
+            
+            // Cargamos la política asociada
+            $politica = $cuenta->politica;
+            
+            // FECHAS
+            $fechaUltimoMovimiento = Carbon::parse($cuenta->updated_at); 
+            $fechaNuevaReactivacion = Carbon::parse($data['fecha_nuevo_inicio']);
+            
+            // Validación de fechas para evitar negativos
+            if ($fechaNuevaReactivacion->lt($fechaUltimoMovimiento)) {
+                $fechaNuevaReactivacion = Carbon::now();
+            }
 
-        $cuenta->fecha_inicio          = $fechaInicio;
-        $cuenta->fecha_vencimiento     = $fechaVence;
-        $cuenta->intereses_acumulados  = 0;
-        $cuenta->comisiones_acumuladas = 0;
-        $cuenta->estado                = 'VIGENTE';
-        $cuenta->save();
+            // 1. Calcular días transcurridos
+            $diasTranscurridos = $fechaUltimoMovimiento->diffInDays($fechaNuevaReactivacion);
 
-        BitacoraAccion::create([
-            'user_id'    => Auth::id(),
-            'accion'     => 'REACTIVAR_INCOBRABLE',
-            'entidad'    => 'CuentaPorCobrar',
-            'entidad_id' => $cuenta->id,
-            'detalle'    => 'Cuenta incobrable reactivada.',
-        ]);
+            // 2. Definir qué tasa usar
+            // OPCIÓN A: Usar la Tasa Normal
+            $tasaAnual = $politica->tasa_interes_anual; 
 
-        return back()->with('success', 'Cuenta reactivada correctamente.');
+            // OPCIÓN B (Opcional): Si prefieres cobrar MORA por el tiempo muerto, descomenta la siguiente línea:
+            // $tasaAnual = ($politica->tasa_mora_anual > 0) ? $politica->tasa_mora_anual : $politica->tasa_interes_anual;
+
+            // 3. Calcular Interés
+            $tasaDiaria = ($tasaAnual / 100) / 365;
+            $interesGenerado = 0;
+            
+            if ($diasTranscurridos > 0) {
+                $interesGenerado = round($cuenta->monto_capital_actual * $tasaDiaria * $diasTranscurridos, 2);
+            }
+
+            // 4. Actualizar saldos (Sumamos, no reemplazamos)
+            $cuenta->intereses_acumulados += $interesGenerado;
+            
+            // Actualizar fechas y estado
+            $cuenta->fecha_inicio = $fechaNuevaReactivacion;
+            // Usamos 'plazo_dias' que vi en tu controlador de Politicas
+            $cuenta->fecha_vencimiento = $fechaNuevaReactivacion->copy()->addDays($politica->plazo_dias);
+            
+            $cuenta->estado = 'VIGENTE';
+            $cuenta->save();
+
+            // 5. Bitácora
+            BitacoraAccion::create([
+                'user_id'    => Auth::id(),
+                'accion'     => 'REACTIVAR_INCOBRABLE',
+                'entidad'    => 'CuentaPorCobrar',
+                'entidad_id' => $cuenta->id,
+                'detalle'    => "Reactivada tras $diasTranscurridos días. Interés sumado: $$interesGenerado (Tasa: $tasaAnual%).",
+            ]);
+
+            return back()->with('success', "Cuenta reactivada. Se generaron $$interesGenerado de intereses por el tiempo inactivo.");
+        });
     }
-
     // REFINANCIAR
     public function crearRefinanciamiento(CuentaPorCobrar $cuenta, Request $request)
     {
