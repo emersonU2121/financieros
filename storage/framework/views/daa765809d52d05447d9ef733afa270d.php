@@ -1,31 +1,31 @@
-@extends('layouts.app')
+<?php $__env->startSection('title', 'Detalle de cuenta'); ?>
 
-@section('title', 'Detalle de cuenta')
-
-@section('content')
+<?php $__env->startSection('content'); ?>
 
 <div class="page">
 
-    {{-- ENCABEZADO --}}
+    
     <div class="page-header">
         <div>
-            <h1 class="page-title">Cuenta #{{ $cuenta->id }}</h1>
+            <h1 class="page-title">Cuenta #<?php echo e($cuenta->id); ?></h1>
             <p class="page-subtitle">
-                Factura {{ $cuenta->numero_factura }} • Cliente: {{ $cuenta->cliente->nombre }}
+                Factura <?php echo e($cuenta->numero_factura); ?> • Cliente: <?php echo e($cuenta->cliente->nombre); ?>
+
             </p>
         </div>
 
-        {{-- MODIFICACIÓN: Agrupamos el estado y el botón en un contenedor flexible --}}
+        
         <div style="display: flex; gap: 10px; align-items: center;">
-            <span class="status-pill status-{{ strtolower($cuenta->estado) }}">
-                {{ strtoupper($cuenta->estado) }}
+            <span class="status-pill status-<?php echo e(strtolower($cuenta->estado)); ?>">
+                <?php echo e(strtoupper($cuenta->estado)); ?>
+
             </span>
 
 
         </div>
     </div>
 
-    {{-- INFORMACIÓN PRINCIPAL --}}
+    
     <div class="card">
         <h2 class="card-title">Información general</h2>
 
@@ -33,51 +33,54 @@
             
             <div>
                 <p class="text-muted">Cliente</p>
-                <p>{{ $cuenta->cliente->codigo }} · {{ $cuenta->cliente->nombre }}</p>
+                <p><?php echo e($cuenta->cliente->codigo); ?> · <?php echo e($cuenta->cliente->nombre); ?></p>
             </div>
 
             <div>
                 <p class="text-muted">Política aplicada</p>
-                <p>{{ $cuenta->politica->nombre }} ({{ $cuenta->politica->plazo_dias }} días)</p>
+                <p><?php echo e($cuenta->politica->nombre); ?> (<?php echo e($cuenta->politica->plazo_dias); ?> días)</p>
             </div>
 
             <div>
                 <p class="text-muted">Fechas</p>
                 <p>
-                    Inicio: {{ $cuenta->fecha_inicio->format('d/m/Y') }} <br>
-                    Vence: {{ $cuenta->fecha_vencimiento->format('d/m/Y') }}
+                    Inicio: <?php echo e($cuenta->fecha_inicio->format('d/m/Y')); ?> <br>
+                    Vence: <?php echo e($cuenta->fecha_vencimiento->format('d/m/Y')); ?>
+
                 </p>
             </div>
 
             <div>
                 <p class="text-muted">Montos</p>
                 <p>
-                    Capital inicial: ${{ number_format($cuenta->monto_capital_inicial, 2) }} <br>
-                    Capital actual: ${{ number_format($cuenta->monto_capital_actual, 2) }}
+                    Capital inicial: $<?php echo e(number_format($cuenta->monto_capital_inicial, 2)); ?> <br>
+                    Capital actual: $<?php echo e(number_format($cuenta->monto_capital_actual, 2)); ?>
+
                 </p>
             </div>
 
             <div>
                 <p class="text-muted">Intereses / Comisiones</p>
                 <p>
-                    Intereses acumulados: ${{ number_format($cuenta->intereses_acumulados, 2) }} <br>
-                    Comisiones acumuladas: ${{ number_format($cuenta->comisiones_acumuladas, 2) }}
+                    Intereses acumulados: $<?php echo e(number_format($cuenta->intereses_acumulados, 2)); ?> <br>
+                    Comisiones acumuladas: $<?php echo e(number_format($cuenta->comisiones_acumuladas, 2)); ?>
+
                 </p>
             </div>
 
         </div>
     </div>
 
-    {{-- PAGOS REGISTRADOS --}}
+    
     <div class="card">
         <div class="card-header-row">
             <h2 class="card-title">Pagos registrados</h2>
 
-            @if(!in_array($cuenta->estado, ['CANCELADO', 'INCOBRABLE', 'REFINANCIADO']))
+            <?php if(!in_array($cuenta->estado, ['CANCELADO', 'INCOBRABLE', 'REFINANCIADO'])): ?>
                 <a href="#form-pago" class="btn btn-primary btn-xs">
                     + Registrar pago
                 </a>
-            @endif
+            <?php endif; ?>
         </div>
 
         <div class="table-wrapper">
@@ -95,37 +98,37 @@
                 </thead>
 
                 <tbody>
-                @forelse($cuenta->pagos as $pago)
+                <?php $__empty_1 = true; $__currentLoopData = $cuenta->pagos; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $pago): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?>
                     <tr>
-                        <td>{{ $pago->numero_recibo }}</td>
-                        <td>{{ $pago->fecha_pago->format('d/m/Y') }}</td>
-                        <td>${{ number_format($pago->monto_total, 2) }}</td>
-                        <td>${{ number_format($pago->monto_interes, 2) }}</td>
-                        <td>${{ number_format($pago->monto_comision, 2) }}</td>
-                        <td>${{ number_format($pago->monto_capital, 2) }}</td>
-                        <td>{{ $pago->forma_pago ?? '-' }}</td>
+                        <td><?php echo e($pago->numero_recibo); ?></td>
+                        <td><?php echo e($pago->fecha_pago->format('d/m/Y')); ?></td>
+                        <td>$<?php echo e(number_format($pago->monto_total, 2)); ?></td>
+                        <td>$<?php echo e(number_format($pago->monto_interes, 2)); ?></td>
+                        <td>$<?php echo e(number_format($pago->monto_comision, 2)); ?></td>
+                        <td>$<?php echo e(number_format($pago->monto_capital, 2)); ?></td>
+                        <td><?php echo e($pago->forma_pago ?? '-'); ?></td>
                     </tr>
-                @empty
+                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?>
                     <tr>
                         <td colspan="7" class="text-muted empty-state text-center">
                             No hay pagos registrados aún.
                         </td>
                     </tr>
-                @endforelse
+                <?php endif; ?>
                 </tbody>
             </table>
         </div>
     </div>
 
-    {{-- FORM DE PAGO --}}
-    @if(!in_array($cuenta->estado, ['CANCELADO','INCOBRABLE','REFINANCIADO']))
+    
+    <?php if(!in_array($cuenta->estado, ['CANCELADO','INCOBRABLE','REFINANCIADO'])): ?>
     <div class="card" id="form-pago">
         <h2 class="card-title">Registrar pago</h2>
         <p class="page-subtitle">El sistema aplica primero intereses, luego comisiones y por último capital.</p>
 
-        <form method="POST" action="{{ route('pagos.store') }}">
-            @csrf
-            <input type="hidden" name="cuenta_id" value="{{ $cuenta->id }}">
+        <form method="POST" action="<?php echo e(route('pagos.store')); ?>">
+            <?php echo csrf_field(); ?>
+            <input type="hidden" name="cuenta_id" value="<?php echo e($cuenta->id); ?>">
 
             <div class="form-grid">
 
@@ -133,26 +136,26 @@
                     <label for="fecha_pago">Fecha</label>
                     <input type="date" id="fecha_pago" name="fecha_pago"
                            class="input"
-                           value="{{ old('fecha_pago', now()->format('Y-m-d')) }}" required>
+                           value="<?php echo e(old('fecha_pago', now()->format('Y-m-d'))); ?>" required>
                 </div>
 
                 <div class="form-group">
                     <label for="monto_total">Monto total pagado</label>
                     <input type="number" step="0.01" id="monto_total" name="monto_total"
-                           class="input" value="{{ old('monto_total') }}" required>
+                           class="input" value="<?php echo e(old('monto_total')); ?>" required>
                 </div>
 
                 <div class="form-group">
                     <label for="forma_pago">Forma de pago</label>
                     <input type="text" id="forma_pago" name="forma_pago"
                            class="input"
-                           value="{{ old('forma_pago', 'EFECTIVO') }}">
+                           value="<?php echo e(old('forma_pago', 'EFECTIVO')); ?>">
                 </div>
 
                 <div class="form-group" style="grid-column:1 / -1;">
                     <label for="observaciones">Observaciones</label>
                     <textarea id="observaciones" name="observaciones" rows="2"
-                              class="input">{{ old('observaciones') }}</textarea>
+                              class="input"><?php echo e(old('observaciones')); ?></textarea>
                 </div>
 
             </div>
@@ -164,14 +167,14 @@
         </form>
 
     </div>
-    @endif
+    <?php endif; ?>
 
 </div>
 
-{{-- MODAL DE REACTIVACIÓN --}}
-@if($cuenta->estado == 'INCOBRABLE')
+
+<?php if($cuenta->estado == 'INCOBRABLE'): ?>
 <div class="card" align="center" style="margin: 1rem auto; max-width: 400px; padding: 1rem;">
-    {{-- AQUI ESTÁ EL CAMBIO: Agregamos style="max-width: 400px;" --}}
+    
     <div class="modal-dialog modal-dialog-centered" style="max-width: 400px;"> 
         
         <div class="modal-content card" style="padding: 0; border: 1px solid rgba(148, 163, 184, 0.2);">
@@ -184,12 +187,12 @@
                         style="filter: invert(1); opacity: 0.7;"></button>
             </div>
 
-            <form action="{{ route('cuentas.reactivarIncobrable', $cuenta->id) }}" method="POST">
-                @csrf
+            <form action="<?php echo e(route('cuentas.reactivarIncobrable', $cuenta->id)); ?>" method="POST">
+                <?php echo csrf_field(); ?>
                 
                 <div class="modal-body" style="padding: 1.5rem;">
                     
-                    {{-- Alerta más compacta --}}
+                    
                     <div style="background: rgba(234, 179, 8, 0.1); border: 1px solid rgba(234, 179, 8, 0.3); color: #facc15; padding: 0.8rem; border-radius: 0.5rem; margin-bottom: 1.2rem; font-size: 0.85rem; line-height: 1.4;">
                         <strong>Atención:</strong> Se calcularán intereses por los días inactivos.
                     </div>
@@ -202,7 +205,7 @@
                                name="fecha_nuevo_inicio" 
                                class="input" 
                                style="width: 100%; color-scheme: dark;" 
-                               value="{{ date('Y-m-d') }}" 
+                               value="<?php echo e(date('Y-m-d')); ?>" 
                                required>
                     </div>
 
@@ -212,7 +215,7 @@
                         </label>
                         <input type="text" 
                                class="input" 
-                               value="${{ number_format($cuenta->monto_capital_actual, 2) }}" 
+                               value="$<?php echo e(number_format($cuenta->monto_capital_actual, 2)); ?>" 
                                disabled
                                style="width: 100%; opacity: 0.7; background: rgba(15, 23, 42, 0.5);">
                     </div>
@@ -226,5 +229,6 @@
         </div>
     </div>
 </div>
-@endif
-@endsection
+<?php endif; ?>
+<?php $__env->stopSection(); ?>
+<?php echo $__env->make('layouts.app', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?><?php /**PATH /home/josue-avalos/SistemaANF/financieros/resources/views/cuentas/show.blade.php ENDPATH**/ ?>
