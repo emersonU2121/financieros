@@ -189,11 +189,16 @@ class CuentaPorCobrarController extends Controller
     // VER DETALLE
     public function show(CuentaPorCobrar $cuenta)
     {
-        $cuenta->load(['cliente', 'politica', 'fiador', 'responsable', 'pagos', 'embargo']);
+    // 1. ¡ACTUALIZAR DEUDA AL MOMENTO!
+    $this->actualizarInteresesDiarios($cuenta); // <--- AGREGA ESTA LÍNEA
 
-        $this->actualizarEstadoSegunPolitica($cuenta, true);
+    // 2. Cargar relaciones
+    $cuenta->load(['cliente', 'politica', 'fiador', 'responsable', 'pagos', 'embargo']);
 
-        return view('cuentas.show', compact('cuenta'));
+    // 3. Revisar si cambió de estado (tu función original)
+    $this->actualizarEstadoSegunPolitica($cuenta, true);
+
+    return view('cuentas.show', compact('cuenta'));
     }
 
     // MARCAR INCOBRABLE
@@ -421,6 +426,61 @@ class CuentaPorCobrarController extends Controller
         return view('cuentas.edit', compact('cuenta', 'clientes', 'politicas', 'usuarios'));
     }
 
+  
+    private function actualizarInteresesDiarios(CuentaPorCobrar $cuenta)
+    {
+    // 1. Definir fechas
+    $ultimoCalculo = Carbon::parse($cuenta->updated_at); // La última vez que se tocó la cuenta
+    $hoy = Carbon::now();
+
+    // Si la cuenta se actualizó hoy mismo, no hacemos nada para ahorrar recursos
+    if ($ultimoCalculo->isSameDay($hoy)) {
+        return;
+    }
+
+    // 2. Calcular días transcurridos desde el último cálculo
+    $diasTranscurridos = $ultimoCalculo->diffInDays($hoy);
+
+    if ($diasTranscurridos > 0 && $cuenta->monto_capital_actual > 0) {
+        
+        $politica = $cuenta->politica;
+        $interesASumar = 0;
+
+        // A. CASO 1: CUENTA VIGENTE (Interés Corriente Normal)
+        if ($cuenta->estado == 'VIGENTE' && $hoy->lte($cuenta->fecha_vencimiento)) {
+            // Capital * (TasaNormal / 365) * Días
+            $tasaDiaria = ($politica->tasa_interes_anual / 100) / 365;
+            $interesASumar = $cuenta->monto_capital_actual * $tasaDiaria * $diasTranscurridos;
+        }
+        
+        // B. CASO 2: CUENTA VENCIDA (Interés Moratorio)
+        // Si hoy ya pasó la fecha de vencimiento, cobramos MORA
+        elseif ($hoy->greaterThan($cuenta->fecha_vencimiento)) {
+            
+            // Usamos la tasa de mora. Si es 0, usamos la normal (según tu política)
+            $tasaAplicar = ($politica->tasa_mora_anual > 0) 
+                            ? $politica->tasa_mora_anual 
+                            : $politica->tasa_interes_anual;
+            
+            $tasaDiaria = ($tasaAplicar / 100) / 365;
+            $interesASumar = $cuenta->monto_capital_actual * $tasaDiaria * $diasTranscurridos;
+
+            // Actualizar estado visualmente si corresponde
+            if ($cuenta->estado == 'VIGENTE') {
+                $cuenta->estado = 'EN_MORA';
+            }
+        }
+
+        // 3. Guardar cambios
+        if ($interesASumar > 0) {
+            $cuenta->intereses_acumulados += $interesASumar;
+            // El save() actualiza el campo 'updated_at' automáticamente a "hoy",
+            // así que mañana el cálculo partirá desde aquí.
+            $cuenta->save(); 
+        }
+    }
+}
+
     // ACTUALIZAR CUENTA
     public function update(Request $request, CuentaPorCobrar $cuenta)
     {
@@ -481,4 +541,9 @@ class CuentaPorCobrarController extends Controller
                 ->with('success', 'Cuenta actualizada correctamente.');
         });
     }
+
+
+
+
+    
 }

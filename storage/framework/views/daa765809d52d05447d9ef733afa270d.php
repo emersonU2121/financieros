@@ -173,7 +173,7 @@
 
 
 <?php if($cuenta->estado == 'INCOBRABLE'): ?>
-<div class="modal fade" id="modalReactivar" tabindex="-1" aria-hidden="true" align="center">
+<div class="card" align="center" style="margin: 1rem auto; max-width: 400px; padding: 1rem;">
     
     <div class="modal-dialog modal-dialog-centered" style="max-width: 400px;"> 
         
